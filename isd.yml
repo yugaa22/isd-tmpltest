@@ -1,8 +1,8 @@
 apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  name: argocd-application-isd
-  title: ArgoCD Application ISD
+  name: argocd-application-new
+  title: ArgoCD Application new
   description: ArgoCD Application For ISD with Helm values override
   tags:
     - argo
