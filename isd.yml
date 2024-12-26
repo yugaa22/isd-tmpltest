@@ -1,112 +1,44 @@
 apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  name: argocd-application-new
-  title: ArgoCD Application new
-  description: ArgoCD Application For ISD with Helm values override
-  tags:
-    - argo
-    - helm
+  name: helm-deployment
+  title: Deploy Helm Chart
+  description: A template to deploy a Helm chart using override values.
 spec:
-  owner: guests
+  owner: your-team
   type: service
   parameters:
-    - title: ArgoCD Configuration Options
-      required:
-        - name
-        - config
+    - title: Helm Chart Details
       properties:
-        apiVersion:
-          default: argoproj.io/v1alpha1
-          description: APIVersion for the resource
+        helmChart:
+          title: Helm Chart Name
           type: string
-          ui:readonly: true
-        kind:
-          default: Application
-          description: Kind for the resource
+          description: Specify the Helm chart to deploy (e.g., `nginx`).
+        helmRepo:
+          title: Helm Repository
           type: string
-          ui:readonly: true
-        name:
-          type: string
-          title: Application Name
-          description: The name of the ArgoCD application.
-          maxLength: 52
-          pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
-          default: testappname
+          description: Helm repository URL where the chart is hosted.
         namespace:
-          description: Namespace for the resource
+          title: Kubernetes Namespace
           type: string
-          default: argocd
-        config:
-          type: object
-          description: Configuration for the ArgoCD application
-          properties:
-            project:
-              type: string
-              default: default
-            destination:
-              type: object
-              properties:
-                namespace:
-                  type: string
-                  default: default
-                server:
-                  type: string
-                  default: https://kubernetes.default.svc
-            source:
-              type: object
-              properties:
-                repoURL:
-                  type: string
-                  default: https://github.com/gopaljayanthi/appset-chart.git
-                targetRevision:
-                  type: string
-                  default: HEAD
-                path:
-                  type: string
-                  default: .
-          required:
-            - project
-            - destination
-            - source
+          description: Namespace where the Helm chart will be deployed.
+        overrideValues:
+          title: Override Values
+          type: string
+          description: Enter override values in YAML format.
+          ui:widget: textarea
   steps:
-    - id: serialize
-      name: Serialize Application Configuration
-      action: roadiehq:utils:serialize:yaml
+    - id: clone-repository
+      name: Clone repository
+      action: github:clone
       input:
-        data:
-          apiVersion: ${{ parameters.apiVersion }}
-          kind: ${{ parameters.kind }}
-          metadata:
-            name: ${{ parameters.name }}
-            namespace: ${{ parameters.namespace }}
-          spec: ${{ parameters.config }}
-    - id: sanitize
-      name: Sanitize Configuration
-      action: cnoe:utils:sanitize
+        repoUrl: '{{ parameters.repoUrl }}'
+        targetPath: './'
+    - id: deploy-helm-chart
+      name: Deploy Helm Chart
+      action: custom:helm-deploy
       input:
-        document: ${{ steps['serialize'].output.serialized }}
-    - id: write-values
-      name: Write Helm Values Override
-      action: roadiehq:utils:fs:write
-      input:
-        path: ./values.override.yaml
-        content: ${{ parameters.config.source.valuesOverride }}
-    - id: write-main-config
-      name: Write Main YAML to File
-      action: roadiehq:utils:fs:write
-      input:
-        path: ./app.yaml
-        content: ${{ steps['sanitize'].output.sanitized }}
-    - id: apply-main-config
-      name: Apply Application Manifest
-      action: cnoe:kubernetes:apply
-      input:
-        manifestPath: ./app.yaml
-        namespaced: true
-    - id: apply-values-override
-      name: Apply Helm Values Override
-      action: cnoe:kubernetes:apply
-      input:
-        manifestPath: ./values.override.yaml
-        namespaced: true
+        helmChart: '{{ parameters.helmChart }}'
+        helmRepo: '{{ parameters.helmRepo }}'
+        namespace: '{{ parameters.namespace }}'
+        overrideValues: '{{ parameters.overrideValues }}'
